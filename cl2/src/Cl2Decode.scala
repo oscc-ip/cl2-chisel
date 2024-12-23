@@ -6,6 +6,7 @@ import chisel3._
 import chisel3.util._
 import chisel3.util.experimental.decode._
 
+//TODO: fix interface for C-Extension
 case class InstructionPattern(
   val instType: String,
   val ldType:   String = "LD_XXX",
@@ -13,12 +14,12 @@ case class InstructionPattern(
   val isCSR:    Boolean = false,
   val func7:    BitPat = BitPat.dontCare(7),
   val func3:    BitPat = BitPat.dontCare(3),
+  // ToDo: add C-Extension Pattern
   val opcode:   BitPat)
     extends DecodePattern {
   def bitPat: BitPat = pattern
 
   val pattern = func7 ## BitPat.dontCare(10) ## func3 ## BitPat.dontCare(5) ## opcode
-
 }
 
 object TestField extends BoolDecodeField[InstructionPattern] {
@@ -55,7 +56,9 @@ class Cl2Decoder extends Module {
     val out     = Output(new DecodeOutput())
   })
 
-  val decodeTable  = new DecodeTable(Cl2DecodeInfo.possiblePatterns, Cl2DecodeInfo.allFields)
+  //TODO: RVC-immediate generation & register selection
+  //TODO: 
+  val decodeTable  = new DecodeTable(Cl2DecodeInfo.possiblePatterns ++ Cl2PreDecodeInfo.possiblePatterns, Cl2DecodeInfo.allFields ++ Cl2PreDecodeInfo.allFields)
   val decodeResult = decodeTable.decode(io.instr)
 
   io.testOut := decodeResult(TestField)

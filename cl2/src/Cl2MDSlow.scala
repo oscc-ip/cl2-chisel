@@ -54,8 +54,6 @@ class Divider extends Module {
 
 class MultDivSlow extends Module {
   val io = IO(new Bundle {
-    val clk_i = Input(Clock())
-    val rst_ni = Input(Bool())
     val mult_en_i = Input(Bool())
     val div_en_i = Input(Bool())
     val mult_sel_i = Input(Bool())

@@ -1,4 +1,5 @@
 BUILD_DIR = ./build
+VSRC_DIR  = ./vsrc
 
 PRJ = cl2
 
@@ -6,8 +7,8 @@ test:
 	./mill -i $(PRJ).test
 
 verilog:
-	mkdir -p $(BUILD_DIR)
-	./mill -i $(PRJ).runMain Elaborate --target-dir $(BUILD_DIR)
+	mkdir -p $(VSRC_DIR)
+	./mill -i $(PRJ).runMain Elaborate --target-dir $(VSRC_DIR)
 
 help:
 	./mill -i $(PRJ).runMain Elaborate --help
@@ -20,5 +21,12 @@ checkformat:
 
 clean:
 	-rm -rf $(BUILD_DIR)
+
+fst:
+	gtkwave ./build/wave/cl2.fst
+
+# verilator simulation
+include ./scripts/verilator_sim.mk
+
 
 .PHONY: test verilog help reformat checkformat clean

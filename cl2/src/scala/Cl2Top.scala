@@ -7,8 +7,6 @@ import chisel3.util._
 
 class Cl2Top extends Module {
   val io = IO(new Bundle {
-    val hart_id    = Input(UInt(32.W))
-    val boot_addr  = Input(UInt(32.W))
-    val core_sleep = Output(Bool())
+    val hart_id = Input(UInt(32.W))
   })
 }

@@ -11,7 +11,9 @@
 !.gitignore
 !.scalafmt.conf
 !build.sc
+!.mill-version
 !README.md
+!LICENSE
 build/
 
 # mill

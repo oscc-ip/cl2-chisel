@@ -8,13 +8,14 @@ import chisel3.util.experimental.decode
 import chisel3.Disable.Type
 
 object RISCVBasicOpCode {}
-object Cl2DecodeInfo    {
 
+object Cl2DecodeInfo {
   val possiblePatterns = Seq(
-    InstructionPattern(instType = "U", opcode = BitPat("b0110111")),                                            // LUI
-    InstructionPattern(instType = "U", opcode = BitPat("b0010111")),                                            // AUIPC
-    InstructionPattern(instType = "J", opcode = BitPat("b1101111")),                                            // JAL
-    InstructionPattern(instType = "I", func3 = BitPat("b000"), opcode = BitPat("b1100111")),                    // JALR
+    InstructionPattern(instType = "U", opcode = BitPat("b0110111")),                         // LUI
+    InstructionPattern(instType = "U", opcode = BitPat("b0010111")),                         // AUIPC
+    InstructionPattern(instType = "J", opcode = BitPat("b1101111")),                         // JAL
+    InstructionPattern(instType = "I", func3 = BitPat("b000"), opcode = BitPat("b1100111")), // JALR
+
     InstructionPattern(instType = "B", func3 = BitPat("b000"), opcode = BitPat("b1100011")),                    // BEQ
     InstructionPattern(instType = "B", func3 = BitPat("b001"), opcode = BitPat("b1100011")),                    // BNE
     InstructionPattern(instType = "B", func3 = BitPat("b100"), opcode = BitPat("b1100011")),                    // BLT
@@ -36,19 +37,19 @@ object Cl2DecodeInfo    {
     InstructionPattern(instType = "I", func3 = BitPat("b110"), opcode = BitPat("b0010011")),                    // ORI
     InstructionPattern(instType = "I", func3 = BitPat("b111"), opcode = BitPat("b0010011")),                    // ANDI
     InstructionPattern(
-      instType = "R",
+      instType = "I",
       func7 = BitPat("b0000000"),
-      func3 = BitPat("b111"),
+      func3 = BitPat("b001"),
       opcode = BitPat("b0010011")
     ),                                                                                                          // SLLI
     InstructionPattern(
-      instType = "R",
+      instType = "I",
       func7 = BitPat("b0000000"),
       func3 = BitPat("b101"),
       opcode = BitPat("b0010011")
     ),                                                                                                          // SRLI
     InstructionPattern(
-      instType = "R",
+      instType = "I",
       func7 = BitPat("b0100000"),
       func3 = BitPat("b101"),
       opcode = BitPat("b0010011")
@@ -113,13 +114,25 @@ object Cl2DecodeInfo    {
       func3 = BitPat("b111"),
       opcode = BitPat("b0110011")
     ),                                                                                                          // AND
-    InstructionPattern(instType = "R", func7 = BitPat("b000"), opcode = BitPat("b0001111")),                    // FENCE
+    InstructionPattern(instType = "R", func3 = BitPat("b000"), opcode = BitPat("b0001111")),                    // FENCE
 
     InstructionPattern(instType = "R", func3 = BitPat("b000"), opcode = BitPat("b1110011")) //  ECALL/EBREAK
 
   )
 
   val allFields = Seq(
-    TestField
+    AselField,
+    BselField,
+    AluOpField,
+    ImmSelField,
+    JumpField,
+    LoadField,
+    StoreField,
+    WBackField,
+    WenField
+    // IsCSRField,
+    // IllegalField
+
   )
+
 }

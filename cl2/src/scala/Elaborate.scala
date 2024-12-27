@@ -6,7 +6,10 @@ object Elaborate extends App {
       "disallowLocalVariables",
       "disallowPackedArrays",
       "locationInfoStyle=wrapInAtSquareBracket"
-    ).reduce(_ + "," + _)
+    ).reduce(_ + "," + _),
+    "--disable-all-randomization",
+    "-o=vsrc/sv-gen",
+    "--split-verilog"
   )
-  circt.stage.ChiselStage.emitSystemVerilogFile(new cl2.Cl2IdExStage(), args, firtoolOptions)
+  circt.stage.ChiselStage.emitSystemVerilogFile(new cl2.Cl2Core(), args, firtoolOptions)
 }

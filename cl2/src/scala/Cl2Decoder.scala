@@ -83,7 +83,7 @@ case class InstructionPattern(
   val isCSR:    Boolean = false,
   val func7:    BitPat = BitPat.dontCare(7),
   val func3:    BitPat = BitPat.dontCare(3),
-  val opcode:   BitPat = BitPat.dontCare(7))
+  val opcode:   BitPat)
     extends DecodePattern {
   def bitPat: BitPat = pattern
 
@@ -106,17 +106,6 @@ object ImmSelField extends DecodeField[InstructionPattern, UInt] {
       case "B" => BitPat(IMM_B)
       case _   => BitPat(IMM_X)
     }
-  }
-}
-
-object EbreakField extends BoolDecodeField[InstructionPattern] {
-  def name: String = "is ebreak instruction"
-
-  def genTable(op: InstructionPattern): BitPat = {
-    if (op.instType == "R" && op.func3.rawString == "000" && op.opcode.rawString == "1110011")
-      BitPat(true.B)
-    else
-      BitPat(false.B)
   }
 }
 
@@ -294,9 +283,7 @@ object WBackField extends DecodeField[InstructionPattern, UInt] {
   def genTable(op: InstructionPattern): BitPat = {
     if (op.ldType != "LD_XXX")
       BitPat(WB_MEM)
-    else if (op.opcode.rawString == "1101111")
-      BitPat(WB_PC4)
-    else if (op.instType == "I" && op.func3.rawString == "000" && op.opcode.rawString == "1100111")
+    else if (op.opcode == "11001111")
       BitPat(WB_PC4)
     else
       BitPat(WB_ALU)
@@ -335,6 +322,17 @@ object IllegalField extends BoolDecodeField[InstructionPattern] {
   }
 }
 
+object EbreakField extends BoolDecodeField[InstructionPattern] {
+  def name: String = "is ebreak instruction"
+
+  def genTable(op: InstructionPattern): BitPat = {
+    if (op.instType == "R" && op.func3.rawString == "000" && op.opcode.rawString == "1110011")
+      BitPat(true.B)
+    else
+      BitPat(false.B)
+  }
+}
+
 object MultDivField extends DecodeField[InstructionPattern, UInt] {
   def name:                             String = "Mult and div op"
   def chiselType:                       UInt   = UInt(4.W)
@@ -356,20 +354,19 @@ object MultDivField extends DecodeField[InstructionPattern, UInt] {
       BitPat(MD_XX)
 
   }
-
 }
 
 class DecodeOutput extends Bundle {
 
-  val immType  = Output(UInt(3.W))
-  val aluOp    = Output(UInt(4.W))
-  val aSel     = Output(UInt(2.W))
-  val bSel     = Output(UInt(2.W))
-  val jType    = Output(UInt(4.W))
-  val stType   = Output(UInt(2.W))
-  val ldType   = Output(UInt(3.W))
-  val wbType   = Output(UInt(2.W))
-  val wbWen    = Output(Bool())
+  val immType = Output(UInt(3.W))
+  val aluOp   = Output(UInt(4.W))
+  val aSel    = Output(UInt(2.W))
+  val bSel    = Output(UInt(2.W))
+  val jType   = Output(UInt(4.W))
+  val stType  = Output(UInt(2.W))
+  val ldType  = Output(UInt(3.W))
+  val wbType  = Output(UInt(2.W))
+  val wbWen   = Output(Bool())
   val isEbreak = Output(Bool())
   val md       = Output(UInt(4.W))
   // val isCsr     = Output(Bool())
@@ -387,15 +384,15 @@ class Cl2Decoder extends Module {
   val decodeResult = decodeTable.decode(io.instr)
 
   // Can we use an elegant way to do this ?
-  io.out.aSel     := decodeResult(AselField)
-  io.out.bSel     := decodeResult(BselField)
-  io.out.aluOp    := decodeResult(AluOpField)
-  io.out.immType  := decodeResult(ImmSelField)
-  io.out.jType    := decodeResult(JumpField)
-  io.out.ldType   := decodeResult(LoadField)
-  io.out.stType   := decodeResult(StoreField)
-  io.out.wbType   := decodeResult(WBackField)
-  io.out.wbWen    := decodeResult(WenField)
+  io.out.aSel    := decodeResult(AselField)
+  io.out.bSel    := decodeResult(BselField)
+  io.out.aluOp   := decodeResult(AluOpField)
+  io.out.immType := decodeResult(ImmSelField)
+  io.out.jType   := decodeResult(JumpField)
+  io.out.ldType  := decodeResult(LoadField)
+  io.out.stType  := decodeResult(StoreField)
+  io.out.wbType  := decodeResult(WBackField)
+  io.out.wbWen   := decodeResult(WenField)
   io.out.isEbreak := decodeResult(EbreakField)
   io.out.md       := decodeResult(MultDivField)
 }

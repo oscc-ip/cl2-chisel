@@ -7,6 +7,7 @@ import chisel3.util._
 
 import Control._
 import os.read
+import scala.reflect.internal.Mode
 
 object SignExt {
   def apply(sig: UInt, len: Int): UInt = {
@@ -56,6 +57,7 @@ class Cl2IdExStage extends Module {
 
   /* Decode */
   val decode = Module(new Cl2Decoder())
+  val predecode = Module(new Cl2Predecoder())
 
   decode.io.instr := instr
 

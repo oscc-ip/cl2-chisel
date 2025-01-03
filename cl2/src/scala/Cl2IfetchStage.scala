@@ -26,6 +26,7 @@ class Cl2IfetchStage extends Module {
 
   // val pc = RegEnable(io.nextPC, Cl2Config.BOOT_ADDR.U, io.if2IdEx.fire)
   val pc = RegEnable(io.nextPC, Cl2Config.BOOT_ADDR.U, io.if2IdEx.fire || io.flush)
+  // val snpc = Mux(pc(1), pc + 2.U, pc + 4.U)
   io.pc := pc
 
   val icacheHelper = Module(new cache_helper()) // DPI-C

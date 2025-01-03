@@ -17,6 +17,7 @@ class SimpleMemResp(xlen: Int) extends Bundle {
   val rdata = UInt(xlen.W)
 }
 
+//use DPI-C for test
 class cache_helper extends BlackBox with HasBlackBoxInline {
   val io = IO(new Bundle {
     val in    = Flipped(Decoupled(Input(new SimpleMemReq(32))))
@@ -41,7 +42,7 @@ class cache_helper extends BlackBox with HasBlackBoxInline {
 	  input  logic reset,
 	  input  logic clock
   );
-	import "DPI-C" function int unsigned mem_read(input int unsigned raddr, int unsigned mask);
+	import "DPI-C" function int unsigned mem_read(input int unsigned raddr);
 	import "DPI-C" function void mem_write(input int unsigned waddr, input int unsigned mask, input int unsigned wdata);
 
 	logic [31:0] rdata_reg;
@@ -69,7 +70,7 @@ class cache_helper extends BlackBox with HasBlackBoxInline {
 		else begin
 			if(in_ready & in_valid) begin
   				if(!in_bits_wen)
-  					rdata_reg <= mem_read(in_bits_addr, in_bits_mask);
+  					rdata_reg <= mem_read(in_bits_addr);
 			end
 		end
 	end

@@ -23,7 +23,7 @@ clean:
 	-rm -rf $(BUILD_DIR)
 
 fst:
-	gtkwave ./build/wave/cl2.fst
+	gtkwave cl2.fst
 
 # verilator simulation
 include ./scripts/verilator_sim.mk

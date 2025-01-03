@@ -6,6 +6,7 @@ import chisel3._
 import chisel3.util._
 
 import Control._
+import os.read
 
 class Cl2WbStage extends Module {
 
@@ -17,6 +18,8 @@ class Cl2WbStage extends Module {
     val wen     = Output(Bool())
     val wbValue = Output(UInt(32.W))
     val rd      = Output(UInt(5.W))
+
+    val ok = Output(Bool())
 
   })
 
@@ -46,14 +49,18 @@ class Cl2WbStage extends Module {
 
   /* Pipeline control */
 
-  val ready_go =
-    io.dummy || (isLoad && lsu.io.memResp.valid) || (isStore && lsu.io.memResp.valid) || (!isLoad && !isStore)
+  // val ready_go = io.dummy || (isLoad && lsu.io.memResp.valid) || (isStore && lsu.io.memResp.valid) || (!isLoad && !isStore)
+  val ready_go = (isLoad && lsu.io.memResp.valid) || (isStore && lsu.io.memResp.valid) || (!isLoad && !isStore)
 
-  io.idEx2Wb.ready := !busy || ready_go
+  io.idEx2Wb.ready := !busy || ready_go || io.dummy
 
   /* Write back */
 
-  io.wen := io.idEx2Wb.bits.wbWen && busy && ready_go
+  // io.wen := io.idEx2Wb.bits.wbWen && busy && !io.dummy
+  io.wen := io.idEx2Wb.bits.wbWen && ready_go && !io.dummy && busy
+  // io.ok := io.idEx2Wb.fire && !io.dummy
+  io.ok  := ready_go && !io.dummy && busy
+
   val aluRes = io.idEx2Wb.bits.aluRes
   // How to deal with error here ?
   val memRes = lsu.io.memResp.bits.rdata

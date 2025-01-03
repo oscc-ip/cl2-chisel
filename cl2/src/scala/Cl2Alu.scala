@@ -4,6 +4,7 @@ import chisel3._
 import chisel3.util._
 import Control._
 
+//We should change this
 class Cl2UglyAlu extends Module {
   val io = IO(new Bundle {
     val a   = Input(UInt(32.W))

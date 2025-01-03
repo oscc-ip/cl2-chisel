@@ -52,7 +52,7 @@ class Cl2Lsu extends Module {
       LD_LB  -> SignExt(rdata(7, 0), 32),
       LD_LBU -> ZeroExt(rdata(7, 0), 32),
       LD_LH  -> SignExt(rdata(15, 0), 32),
-      LD_LHU -> SignExt(rdata(15, 0), 32),
+      LD_LHU -> ZeroExt(rdata(15, 0), 32),
       LD_LW  -> rdata,
       LD_XXX -> 0.U
     )

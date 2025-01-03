@@ -13,8 +13,10 @@ class DecoderTest extends AnyFreeSpec {
       dut.reset.poke(false.B)
       dut.clock.step()
 
-      dut.io.instr.poke("h00000297".U(32.W))
-      dut.io.out.aSel.expect(ASEL_PC)
+      dut.io.instr.poke("h00100073".U(32.W))
+      dut.io.out.isEbreak.expect(true.B)
+      dut.io.instr.poke("h094040ef".U(32.W))
+      dut.io.out.wbType.expect(WB_PC4)
 
     }
   }

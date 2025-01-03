@@ -9,4 +9,8 @@ class Cl2Top extends Module {
   val io = IO(new Bundle {
     val hart_id = Input(UInt(32.W))
   })
+
+  val core = Module(new Cl2Core)
+  io.hart_id <> core.io.hart_id
+  core.io.interrupt := false.B
 }

@@ -8,6 +8,7 @@ import chisel3.util._
 class If2IdExSignals extends Bundle {
   val pc    = Output(UInt(32.W))
   val instr = Output(UInt(32.W))
+  // val isCompressed = Output(Bool())
 }
 
 class Cl2IfetchStage extends Module {
@@ -19,24 +20,33 @@ class Cl2IfetchStage extends Module {
 
     val pc    = Output(UInt(32.W))
     val flush = Input(Bool())
+
+    val interrupt = Input(Bool())
   })
 
-  val pc = RegEnable(io.nextPC, Cl2Config.BOOT_ADDR.U, io.if2IdEx.fire)
+  // val pc = RegEnable(io.nextPC, Cl2Config.BOOT_ADDR.U, io.if2IdEx.fire)
+  val pc = RegEnable(io.nextPC, Cl2Config.BOOT_ADDR.U, io.if2IdEx.fire || io.flush)
   io.pc := pc
 
   val icacheHelper = Module(new cache_helper()) // DPI-C
 
   icacheHelper.io.reset         := reset
   icacheHelper.io.clock         := clock
-  icacheHelper.io.in.valid      := true.B
+  icacheHelper.io.in.valid      := !io.flush // Pay attention here, change it the future
   icacheHelper.io.in.bits.addr  := pc
-  icacheHelper.io.in.bits.mask  := 15.U
+  icacheHelper.io.in.bits.mask  := 0.U
   icacheHelper.io.in.bits.wdata := 0.U
   icacheHelper.io.in.bits.wen   := false.B
   icacheHelper.io.out.ready     := io.if2IdEx.ready
 
   /* flush */
-  val plDummy = RegEnable(Mux(io.flush, true.B, false.B), true.B, io.if2IdEx.fire)
+  // val plDummy = RegEnable(Mux(io.flush, true.B, false.B), true.B, io.if2IdEx.fire)
+  val plDummy = RegInit(true.B)
+  when(io.flush && io.if2IdEx.ready) {
+    plDummy := true.B
+  }.elsewhen(io.if2IdEx.fire) {
+    plDummy := false.B
+  }
 
   /* Pipeline control */
   val ready_go = icacheHelper.io.out.valid

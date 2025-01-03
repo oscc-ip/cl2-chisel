@@ -116,7 +116,56 @@ object Cl2DecodeInfo {
     ),                                                                                                          // AND
     InstructionPattern(instType = "R", func3 = BitPat("b000"), opcode = BitPat("b0001111")),                    // FENCE
 
-    InstructionPattern(instType = "R", func3 = BitPat("b000"), opcode = BitPat("b1110011")) //  ECALL/EBREAK
+    InstructionPattern(instType = "R", func3 = BitPat("b000"), opcode = BitPat("b1110011")), //  ECALL/EBREAK
+
+    InstructionPattern(
+      instType = "R",
+      func7 = BitPat("b0000001"),
+      func3 = BitPat("b000"),
+      opcode = BitPat("b0110011")
+    ), // MUL
+    InstructionPattern(
+      instType = "R",
+      func7 = BitPat("b0000001"),
+      func3 = BitPat("b001"),
+      opcode = BitPat("b0110011")
+    ), // MULH
+    InstructionPattern(
+      instType = "R",
+      func7 = BitPat("b0000001"),
+      func3 = BitPat("b010"),
+      opcode = BitPat("b0110011")
+    ), // MULHSU
+    InstructionPattern(
+      instType = "R",
+      func7 = BitPat("b0000001"),
+      func3 = BitPat("b011"),
+      opcode = BitPat("b0110011")
+    ), // MULHU
+    InstructionPattern(
+      instType = "R",
+      func7 = BitPat("b0000001"),
+      func3 = BitPat("b100"),
+      opcode = BitPat("b0110011")
+    ), // DIV
+    InstructionPattern(
+      instType = "R",
+      func7 = BitPat("b0000001"),
+      func3 = BitPat("b101"),
+      opcode = BitPat("b0110011")
+    ), // DIVU
+    InstructionPattern(
+      instType = "R",
+      func7 = BitPat("b0000001"),
+      func3 = BitPat("b110"),
+      opcode = BitPat("b0110011")
+    ), // REM
+    InstructionPattern(
+      instType = "R",
+      func7 = BitPat("b0000001"),
+      func3 = BitPat("b111"),
+      opcode = BitPat("b0110011")
+    )  // REMU
 
   )
 
@@ -129,7 +178,9 @@ object Cl2DecodeInfo {
     LoadField,
     StoreField,
     WBackField,
-    WenField
+    WenField,
+    EbreakField,
+    MultDivField
     // IsCSRField,
     // IllegalField
 

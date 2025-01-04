@@ -31,7 +31,6 @@ class IdEx2WbSignals extends Bundle {
   val wbWen    = Output(Bool())
   val pc       = Output(UInt(32.W))
   val isEbreak = Output(Bool())
-
 }
 
 class Cl2IdExStage extends Module {
@@ -106,39 +105,13 @@ class Cl2IdExStage extends Module {
   alu.io.b := b
   val res = alu.io.res
   val lt  = Mux(a(31) === b(31), res(31), a(31))
-  val ltu = Mux(a(31) === b(31), res(31), b(31))
-  // We can do this better
+  val ltu = Mux(a(31) === b(31), res(31), b(31))  
 
-  /* Mult and Div */
+  val mdu = Module(new Cl2MDU)
+  val mdures = mdu.access(!alu.io.op, a, b, ctrl.md)
+  val mdu_finish = mdu.io.out.valid
 
-  // fanout ?
-  val div = Module(new RestoringDivider)
-  dontTouch(div.io)
-  div.io.in.bits(0) := a
-  div.io.in.bits(1) := b
-  div.io.sign       := ctrl.md(2)
-  div.io.in.valid   := busy && !io.dummy_in && ctrl.md(3)
-  div.io.out.ready  := io.idEx2Wb.ready
-
-  val mult = Module(new BoothMultiplier)
-  dontTouch(mult.io)
-  mult.io.in.bits(0) := a.asSInt
-  mult.io.in.bits(1) := b.asSInt
-  mult.io.in.valid   := busy && !io.dummy_in && !ctrl.md(3) && ctrl.md =/= MD_XX
-  val mult_ready = RegInit(false.B)
-  when(mult.io.in.fire) {
-    mult_ready := true.B
-  }.elsewhen(mult.io.out.fire) {
-    mult_ready := false.B
-  }
-  mult.io.out.ready := io.idEx2Wb.ready && mult_ready
-
-  /* Pipeline control */
-  val ready_go = Wire(Bool())
-  // Pay attention to ready_go signal
-  ready_go := ctrl.md === MD_XX || ctrl.md(3) && div.io.out.valid || mult_ready && mult.io.out.valid
-
-  io.if2IdEx.ready := !busy || ready_go && io.idEx2Wb.ready || io.dummy_in
+  io.if2IdEx.ready := !busy || mdu_finish && io.idEx2Wb.ready || io.dummy_in
 
   val jump = MuxLookup(ctrl.jType, false.B)(
     Seq(
@@ -153,7 +126,7 @@ class Cl2IdExStage extends Module {
       J_GEU  -> ~ltu
     )
   )
-  io.jump := jump && !io.dummy_in && ready_go
+  io.jump := jump && !io.dummy_in && mdu_finish
 
   val br_addr = (imm + pc)
   // We can do this better
@@ -171,17 +144,7 @@ class Cl2IdExStage extends Module {
     )
   )
   /* Pipeline Registers */
-  val exRes = MuxLookup(ctrl.md, alu.io.res)(
-    Seq(
-      MD_XX   -> alu.io.res,
-      MD_DIV  -> div.io.out.bits(31, 0),
-      MD_DIVU -> div.io.out.bits(31, 0),
-      MD_REM  -> div.io.out.bits(63, 32),
-      MD_REMU -> div.io.out.bits(63, 32),
-      MD_MUL  -> mult.io.out.bits(31, 0),
-      MD_MULH -> mult.io.out.bits(63, 32)
-    )
-  )
+  val exRes = Mux(alu.io.op === 0.U, alu.io.res, mdures)
 
   val plRegs = RegInit(0.U.asTypeOf(new IdEx2WbSignals))
   // How to do this in a more elegant way ?
@@ -202,6 +165,6 @@ class Cl2IdExStage extends Module {
   io.idEx2Wb.bits := plRegs
 
   io.dummy_out     := dummy_r
-  io.idEx2Wb.valid := ready_go && busy || io.dummy_in
+  io.idEx2Wb.valid := mdu_finish && busy || io.dummy_in
 
 }

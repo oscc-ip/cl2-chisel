@@ -22,16 +22,17 @@ object Control {
   val BSEL_REG = 1.U(2.W)
 
   // We can optimize this, for example, we can use add to implement sub
-  val ALU_ADD  = 0.U(4.W)
-  val ALU_SUB  = 1.U(4.W)
-  val ALU_AND  = 2.U(4.W)
-  val ALU_OR   = 3.U(4.W)
-  val ALU_XOR  = 4.U(4.W)
-  val ALU_SLT  = 5.U(4.W)
-  val ALU_SLL  = 6.U(4.W)
-  val ALU_SLTU = 7.U(4.W)
-  val ALU_SRL  = 8.U(4.W)
-  val ALU_SRA  = 9.U(4.W)
+  val ALU_DtCare  = 0.U(4.W)
+  val ALU_ADD     = 1.U(4.W)
+  val ALU_SUB     = 2.U(4.W)
+  val ALU_AND     = 3.U(4.W)
+  val ALU_OR      = 4.U(4.W)
+  val ALU_XOR     = 5.U(4.W)
+  val ALU_SLT     = 6.U(4.W)
+  val ALU_SLL     = 7.U(4.W)
+  val ALU_SLTU    = 8.U(4.W)
+  val ALU_SRL     = 9.U(4.W)
+  val ALU_SRA     = 10.U(4.W)
 
   // We can do this in a better way
   val J_XXX  = 0.U(4.W)
@@ -62,15 +63,15 @@ object Control {
   val WB_MEM = 2.U(2.W)
   val WB_PC4 = 3.U(2.W)
 
-  val MD_XX     = 0.U(4.W)
-  val MD_MUL    = "b0001".U(4.W)
-  val MD_MULH   = "b0100".U(4.W)
-  val MD_MULHU  = "b0101".U(4.W)
-  val MD_MULHSU = "b0110".U(4.W)
-  val MD_DIVU   = "b1000".U(4.W)
-  val MD_REMU   = "b1001".U(4.W)
-  val MD_DIV    = "b1100".U(4.W)
-  val MD_REM    = "b1101".U(4.W)
+  // val MD_XX     = 0.U(4.W)
+  val MD_MUL    = "b000".U(3.W)
+  val MD_MULH   = "b001".U(3.W)
+  val MD_MULHSU = "b010".U(3.W)
+  val MD_MULHU  = "b011".U(3.W)
+  val MD_DIV    = "b100".U(3.W)
+  val MD_DIVU   = "b101".U(3.W)
+  val MD_REM    = "b110".U(3.W)
+  val MD_REMU   = "b111".U(3.W)
 }
 
 /* More tests, more fun */
@@ -164,7 +165,9 @@ object AluOpField extends DecodeField[InstructionPattern, UInt] {
       }
     } else if (op.instType == "B")
       BitPat(ALU_SUB)
-    else
+    else if(op.instType == "M")
+      BitPat(ALU_DtCare)
+    else 
       BitPat(ALU_ADD)
   }
 }
@@ -335,10 +338,10 @@ object EbreakField extends BoolDecodeField[InstructionPattern] {
 
 object MultDivField extends DecodeField[InstructionPattern, UInt] {
   def name:                             String = "Mult and div op"
-  def chiselType:                       UInt   = UInt(4.W)
+  def chiselType:                       UInt   = UInt(3.W)
   def genTable(op: InstructionPattern): BitPat = {
     // We can do this in a beter way, rvdecoderdb
-    if (op.func7.rawString == "0000001" && op.opcode.rawString == "0110011") {
+    if (op.instType == "M") {
       op.func3.rawString match {
         case "000" => BitPat(MD_MUL)
         case "001" => BitPat(MD_MULH)
@@ -348,10 +351,10 @@ object MultDivField extends DecodeField[InstructionPattern, UInt] {
         case "101" => BitPat(MD_DIVU)
         case "110" => BitPat(MD_REM)
         case "111" => BitPat(MD_REMU)
-        case _: String => BitPat(MD_XX)
+        // case _: String => BitPat(MD_XX)
       }
     } else
-      BitPat(MD_XX)
+      BitPat(MD_MUL)
 
   }
 }

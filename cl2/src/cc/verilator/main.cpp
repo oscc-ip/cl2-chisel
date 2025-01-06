@@ -121,6 +121,8 @@ int sim_work() {
     }
 
   }
+  if(total_cycles == MAX_CYCLES)
+    printf("max cycles !!!!\n");
 
   return res;
 }

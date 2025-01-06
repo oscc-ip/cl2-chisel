@@ -38,20 +38,23 @@ unsigned int load_img(char *path) {
 extern void sim_exit();
 //mmio devices ?
 extern "C" unsigned int mem_read(uint32_t raddr) {
-  // printf("The raddr is: %x\n", raddr);
+   printf("The raddr is: %x\n", raddr);
   if(raddr < RESET_VECTOR || (raddr - RESET_VECTOR >= PMEM_SIZE)) {
     sim_exit();
     assert(0);
   }
-  return *(uint32_t *)(mem + raddr - RESET_VECTOR);
+  uint32_t v =  *(uint32_t *)(mem + raddr - RESET_VECTOR);
+  // printf("The v is %#x\n", v);
+  return v;
 }
 
 extern "C" void mem_write(uint32_t waddr, uint32_t mask, uint32_t wdata) {
-  uintptr_t addr = waddr;
+  uint8_t *addr = mem + waddr - RESET_VECTOR;
+  printf("waddr: %#x, mask:%x, data: %#x\n", waddr, mask, wdata);
   switch (mask) {
-    case 0x1: *(volatile uint8_t*)addr = wdata;
-    case 0x11: *(volatile uint16_t*)addr = wdata;
-    case 0x1111: *(volatile uint32_t*)addr = wdata;
+    case 0x1: *(volatile uint8_t*)addr = wdata; break;
+    case 0x3: *(volatile uint16_t*)addr = wdata; break;
+    case 0xf: *(volatile uint32_t*)addr = wdata; break;
     default: assert(0);
   }
 

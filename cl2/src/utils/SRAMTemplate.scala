@@ -13,7 +13,7 @@ class SRAMBundleA(val set: Int) extends Bundle {
 }
 
 class SRAMBundleAW[T <: Data](private val gen: T, set: Int, val way: Int = 1) extends SRAMBundleA(set) {
-  val data = Output(gen)
+  val data    = Output(gen)
   val waymask = if (way > 1) Some(Output(UInt(way.W))) else None
 
   def apply(data: T, setIdx: UInt, waymask: UInt) = {
@@ -29,7 +29,7 @@ class SRAMBundleR[T <: Data](private val gen: T, val way: Int = 1) extends Bundl
 }
 
 class SRAMReadBus[T <: Data](private val gen: T, val set: Int, val way: Int = 1) extends Bundle {
-  val req = Decoupled(new SRAMBundleA(set))
+  val req  = Decoupled(new SRAMBundleA(set))
   val resp = Flipped(new SRAMBundleR(gen, way))
 
   def apply(valid: Bool, setIdx: UInt) = {
@@ -49,34 +49,40 @@ class SRAMWriteBus[T <: Data](private val gen: T, val set: Int, val way: Int = 1
   }
 }
 
-class SRAMTemplate[T <: Data](gen: T, set: Int, way: Int = 1,
-  shouldReset: Boolean = false, holdRead: Boolean = false, singlePort: Boolean = false) extends Module {
+class SRAMTemplate[T <: Data](
+  gen:         T,
+  set:         Int,
+  way:         Int = 1,
+  shouldReset: Boolean = false,
+  holdRead:    Boolean = false,
+  singlePort:  Boolean = false)
+    extends Module {
   val io = IO(new Bundle {
     val r = Flipped(new SRAMReadBus(gen, set, way))
     val w = Flipped(new SRAMWriteBus(gen, set, way))
   })
 
-  val wordType = UInt(gen.getWidth.W)
-  val array = SyncReadMem(set, Vec(way, wordType))
+  val wordType               = UInt(gen.getWidth.W)
+  val array                  = SyncReadMem(set, Vec(way, wordType))
   val (resetState, resetSet) = (WireInit(false.B), WireInit(0.U))
 
   if (shouldReset) {
-    val _resetState = RegInit(true.B)
+    val _resetState              = RegInit(true.B)
     val (_resetSet, resetFinish) = Counter(_resetState, set)
-    when (resetFinish) { _resetState := false.B }
+    when(resetFinish) { _resetState := false.B }
 
     resetState := _resetState
-    resetSet := _resetSet
+    resetSet   := _resetSet
   }
 
   val (ren, wen) = (io.r.req.valid, io.w.req.valid || resetState)
-  val realRen = (if (singlePort) ren && !wen else ren)
+  val realRen    = (if (singlePort) ren && !wen else ren)
 
-  val setIdx = Mux(resetState, resetSet, io.w.req.bits.setIdx)
+  val setIdx    = Mux(resetState, resetSet, io.w.req.bits.setIdx)
   val wdataword = Mux(resetState, 0.U.asTypeOf(wordType), io.w.req.bits.data.asUInt)
-  val waymask = Mux(resetState, Fill(way, "b1".U), io.w.req.bits.waymask.getOrElse("b1".U))
-  val wdata = VecInit(Seq.fill(way)(wdataword))
-  when (wen) { array.write(setIdx, wdata, waymask.asBools) }
+  val waymask   = Mux(resetState, Fill(way, "b1".U), io.w.req.bits.waymask.getOrElse("b1".U))
+  val wdata     = VecInit(Seq.fill(way)(wdataword))
+  when(wen) { array.write(setIdx, wdata, waymask.asBools) }
 
   val rdata = (if (holdRead) ReadAndHold(array, io.r.req.bits.setIdx, realRen)
                else array.read(io.r.req.bits.setIdx, realRen)).map(_.asTypeOf(gen))
@@ -86,8 +92,8 @@ class SRAMTemplate[T <: Data](gen: T, set: Int, way: Int = 1,
   io.w.req.ready := true.B
 }
 
-class SRAMTemplateWithArbiter[T <: Data](nRead: Int, gen: T, set: Int, way: Int = 1,
-  shouldReset: Boolean = false) extends Module {
+class SRAMTemplateWithArbiter[T <: Data](nRead: Int, gen: T, set: Int, way: Int = 1, shouldReset: Boolean = false)
+    extends Module {
   val io = IO(new Bundle {
     val r = Flipped(Vec(nRead, new SRAMReadBus(gen, set, way)))
     val w = Flipped(new SRAMWriteBus(gen, set, way))
@@ -101,7 +107,9 @@ class SRAMTemplateWithArbiter[T <: Data](nRead: Int, gen: T, set: Int, way: Int 
   ram.io.r.req <> readArb.io.out
 
   // latch read results
-  io.r.map{ case r => {
-    r.resp.data := HoldUnless(ram.io.r.resp.data, RegNext(r.req.fire))
-  }}
+  io.r.map {
+    case r => {
+      r.resp.data := HoldUnless(ram.io.r.resp.data, RegNext(r.req.fire))
+    }
+  }
 }

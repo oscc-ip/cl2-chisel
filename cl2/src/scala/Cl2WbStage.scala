@@ -31,11 +31,12 @@ class Cl2WbStage extends Module {
   val isStore = io.idEx2Wb.bits.stType =/= ST_XXX
 
   val lsu = Module(new Cl2Lsu)
+  dontTouch(lsu.io)
 
   lsu.io.ldType := io.idEx2Wb.bits.ldType
   lsu.io.stType := io.idEx2Wb.bits.stType
 
-  lsu.io.memReq.bits.addr  := io.idEx2Wb.bits.aluRes
+  lsu.io.memReq.bits.addr  := io.idEx2Wb.bits.exRes
   lsu.io.memReq.bits.mask  := 0.U     // Let Lsu do this
   lsu.io.memReq.bits.wdata := io.idEx2Wb.bits.rs2Value
   lsu.io.memReq.bits.wen   := false.B // Let Lsu do this
@@ -61,7 +62,7 @@ class Cl2WbStage extends Module {
   // io.ok := io.idEx2Wb.fire && !io.dummy
   io.ok  := ready_go && !io.dummy && busy
 
-  val aluRes = io.idEx2Wb.bits.aluRes
+  val aluRes = io.idEx2Wb.bits.exRes
   // How to deal with error here ?
   val memRes = lsu.io.memResp.bits.rdata
 
@@ -72,7 +73,7 @@ class Cl2WbStage extends Module {
       WB_ALU -> aluRes,
       WB_CSR -> aluRes, // change in the future
       WB_MEM -> memRes,
-      WB_PC4 -> (pc + 4.U)
+      WB_PC4 -> Mux(io.idEx2Wb.bits.isCompressed, (pc + 2.U), (pc + 4.U))
     )
   )
 

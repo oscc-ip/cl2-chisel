@@ -16,12 +16,14 @@ class Cl2Core extends Module {
   val idex_stage = Module(new Cl2IdExStage)
 
   if_stage.io.interrupt := io.interrupt
+  val pc = if_stage.io.pc
 
-  val jAddr = idex_stage.io.jAddr
-  val jump  = idex_stage.io.jump
-  val flush = jump && jAddr =/= if_stage.io.pc
+  val jAddr        = idex_stage.io.jAddr
+  val jump         = idex_stage.io.jump
+  val flush        = jump && jAddr =/= pc
+  val isCompressed = if_stage.io.isCompressed
 
-  if_stage.io.nextPC := Mux(flush, jAddr, (if_stage.io.pc + 4.U))
+  if_stage.io.nextPC := Mux(flush, jAddr, Mux(isCompressed, (pc + 2.U), (pc + 4.U)))
   if_stage.io.flush  := flush
 
   idex_stage.io.if2IdEx <> if_stage.io.if2IdEx

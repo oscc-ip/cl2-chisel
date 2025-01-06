@@ -28,7 +28,7 @@
 //       J_JAL  -> IMM_J
 //     )
 //   )
-  
+
 //   val predict = MuxLookup(Cl2Decoder().io.out.jType, false.B)(
 //     Seq(
 //       J_XXX -> false.B,

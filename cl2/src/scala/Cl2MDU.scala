@@ -13,17 +13,17 @@ object MDUOpType {
   def rem    = "b110".U
   def remu   = "b111".U
 
-  def isDiv(op: UInt) = op(2)
+  def isDiv(op:     UInt) = op(2)
   def isDivSign(op: UInt) = isDiv(op) && !op(0)
 }
 
-class MDUBundle(len: Int = 32)  extends Bundle {
+class MDUBundle(len: Int = 32) extends Bundle {
   val in   = Flipped(DecoupledIO(Vec(2, Output(UInt(len.W)))))
   val out  = DecoupledIO(Output(UInt((len * 2).W)))
   val sign = Input(Bool())
 }
 
-class BoothMultiplier (len: Int = 32)  extends Module {
+class BoothMultiplier(len: Int = 32) extends Module {
   val io = IO(new MDUBundle(len))
 
   val multiplicandReg = RegInit(0.U((len * 2).W))
@@ -39,7 +39,7 @@ class BoothMultiplier (len: Int = 32)  extends Module {
   when(io.sign) {
     signedMultiplicand := io.in.bits(0).asTypeOf(SInt(len.W)).asSInt.pad(len * 2)
     signedMultiplier   := io.in.bits(1).asTypeOf(SInt(len.W)).asSInt.pad(len + 1)
-  } .otherwise {
+  }.otherwise {
     signedMultiplicand := io.in.bits(0).asUInt.pad(len * 2).asSInt
     signedMultiplier   := io.in.bits(1).asUInt.pad(len + 1).asSInt
   }
@@ -47,8 +47,8 @@ class BoothMultiplier (len: Int = 32)  extends Module {
   when(io.in.valid && ~busy) {
     resultReg       := 0.U((len * 2).W)
     shiftCounter    := 0.U(8.W)
-    multiplicandReg := signedMultiplicand // Signed extend to 64 bit
-    multiplierReg   := Cat(signedMultiplier.asUInt, 0.U(1.W))       // Add one more 0 bit right next to it
+    multiplicandReg := signedMultiplicand.asUInt              // Signed extend to 64 bit
+    multiplierReg   := Cat(signedMultiplier.asUInt, 0.U(1.W)) // Add one more 0 bit right next to it
   }.otherwise {
     when(busy) {
       resultReg       := resultReg + MuxCase(
@@ -74,8 +74,7 @@ class BoothMultiplier (len: Int = 32)  extends Module {
       shiftCounter    := shiftCounter
     }
   }
-  // Pay attention here !!
-  io.out.bits  := resultReg.asSInt
+  io.out.bits  := resultReg
   io.out.valid := !busy
   io.in.ready  := !busy
 }
@@ -134,8 +133,8 @@ class RestoringDivider(len: Int = 32) extends Module {
   io.in.ready  := (state === s_idle)
 }
 
-class MDUIO extends Bundle{
-  val in = Flipped(Decoupled(new Bundle {
+class MDUIO extends Bundle {
+  val in  = Flipped(Decoupled(new Bundle {
     val src1 = Output(UInt(32.W))
     val src2 = Output(UInt(32.W))
     val func = Output(UInt(3.W))
@@ -148,30 +147,32 @@ object LookupTree {
     Mux1H(mapping.map(p => (p._1 === key, p._2)))
 }
 
-class Cl2MDU extends Module{
+class Cl2MDU extends Module {
   val io = IO(new MDUIO)
 
   val (valid, src1, src2, func) = (io.in.valid, io.in.bits.src1, io.in.bits.src2, io.in.bits.func)
   def access(valid: Bool, src1: UInt, src2: UInt, func: UInt): UInt = {
     this.valid := valid
-    this.src1 := src1
-    this.src2 := src2
-    this.func := func
+    this.src1  := src1
+    this.src2  := src2
+    this.func  := func
     io.out.bits
   }
 
-  val isDiv = MDUOpType.isDiv(func)
+  val isDiv     = MDUOpType.isDiv(func)
   val isDivSign = MDUOpType.isDivSign(func)
 
   val mul = Module(new BoothMultiplier(32))
   val div = Module(new RestoringDivider(32))
+  dontTouch(mul.io)
+  dontTouch(div.io)
   List(mul.io, div.io).map { case x =>
-    x.sign := isDivSign
+    x.sign      := isDivSign
     x.out.ready := io.out.ready
   }
 
-  val signext = SignExt(_: UInt, 33)
-  val zeroext = ZeroExt(_: UInt, 33)
+  val signext           = SignExt(_: UInt, 33)
+  val zeroext           = ZeroExt(_: UInt, 33)
   val mulInputFuncTable = List(
     MDUOpType.mul    -> (zeroext, zeroext),
     MDUOpType.mulh   -> (signext, signext),
@@ -179,18 +180,21 @@ class Cl2MDU extends Module{
     MDUOpType.mulhu  -> (zeroext, zeroext)
   )
 
-  mul.io.in.bits(0) := LookupTree(func(1,0), mulInputFuncTable.map(p => (p._1(1,0), p._2._1(src1))))
-  mul.io.in.bits(1) := LookupTree(func(1,0), mulInputFuncTable.map(p => (p._1(1,0), p._2._2(src2))))
+  mul.io.in.bits(0) := LookupTree(func(1, 0), mulInputFuncTable.map(p => (p._1(1, 0), p._2._1(src1))))
+  mul.io.in.bits(1) := LookupTree(func(1, 0), mulInputFuncTable.map(p => (p._1(1, 0), p._2._2(src2))))
 
-  val divInputFunc = (x: UInt) => Mux(isDivSign, SignExt(x(31,0), 32), ZeroExt(x(31,0), 32))
+  val divInputFunc = (x: UInt) => Mux(isDivSign, SignExt(x(31, 0), 32), ZeroExt(x(31, 0), 32))
   div.io.in.bits(0) := divInputFunc(src1)
   div.io.in.bits(1) := divInputFunc(src2)
 
   mul.io.in.valid := io.in.valid && !isDiv
   div.io.in.valid := io.in.valid && isDiv
 
-  val mulRes = Mux(func(1,0) === MDUOpType.mul(1,0), mul.io.out.bits(31,0), mul.io.out.bits(63,32))
-  val divRes = Mux(func(1) , div.io.out.bits(63,32), div.io.out.bits(31,0))
-  val res = Mux(isDiv, divRes, mulRes)
+  val mulRes = Mux(func(1, 0) === MDUOpType.mul(1, 0), mul.io.out.bits(31, 0), mul.io.out.bits(63, 32))
+  val divRes = Mux(func(1), div.io.out.bits(63, 32), div.io.out.bits(31, 0))
+  val res    = Mux(isDiv, divRes, mulRes)
   io.out.bits := res
+
+  io.in.ready  := mul.io.in.ready
+  io.out.valid := mul.io.out.valid || div.io.out.valid
 }

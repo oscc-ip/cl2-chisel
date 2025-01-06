@@ -22,17 +22,17 @@ object Control {
   val BSEL_REG = 1.U(2.W)
 
   // We can optimize this, for example, we can use add to implement sub
-  val ALU_DtCare  = 0.U(4.W)
-  val ALU_ADD     = 1.U(4.W)
-  val ALU_SUB     = 2.U(4.W)
-  val ALU_AND     = 3.U(4.W)
-  val ALU_OR      = 4.U(4.W)
-  val ALU_XOR     = 5.U(4.W)
-  val ALU_SLT     = 6.U(4.W)
-  val ALU_SLL     = 7.U(4.W)
-  val ALU_SLTU    = 8.U(4.W)
-  val ALU_SRL     = 9.U(4.W)
-  val ALU_SRA     = 10.U(4.W)
+  val ALU_DtCare = 0.U(4.W)
+  val ALU_ADD    = 1.U(4.W)
+  val ALU_SUB    = 2.U(4.W)
+  val ALU_AND    = 3.U(4.W)
+  val ALU_OR     = 4.U(4.W)
+  val ALU_XOR    = 5.U(4.W)
+  val ALU_SLT    = 6.U(4.W)
+  val ALU_SLL    = 7.U(4.W)
+  val ALU_SLTU   = 8.U(4.W)
+  val ALU_SRL    = 9.U(4.W)
+  val ALU_SRA    = 10.U(4.W)
 
   // We can do this in a better way
   val J_XXX  = 0.U(4.W)
@@ -63,7 +63,7 @@ object Control {
   val WB_MEM = 2.U(2.W)
   val WB_PC4 = 3.U(2.W)
 
-  // val MD_XX     = 0.U(4.W)
+  // val MD_XX     = "b000".U(3.W)
   val MD_MUL    = "b000".U(3.W)
   val MD_MULH   = "b001".U(3.W)
   val MD_MULHSU = "b010".U(3.W)
@@ -165,9 +165,9 @@ object AluOpField extends DecodeField[InstructionPattern, UInt] {
       }
     } else if (op.instType == "B")
       BitPat(ALU_SUB)
-    else if(op.instType == "M")
+    else if (op.instType == "M")
       BitPat(ALU_DtCare)
-    else 
+    else
       BitPat(ALU_ADD)
   }
 }
@@ -178,15 +178,17 @@ object AselField extends DecodeField[InstructionPattern, UInt] {
   def genTable(op: InstructionPattern): BitPat = {
     if (op.instType == "I")
       BitPat(ASEL_REG)
-    else if (op.opcode.rawString == "0110111")
+    else if (op.opcode.rawString == "0110111") //lui
       BitPat(ASEL_Z)
-    else if (op.opcode.rawString == "0010111")
+    else if (op.opcode.rawString == "0010111") //auipc
       BitPat(ASEL_PC)
     else if (op.instType == "R")
       BitPat(ASEL_REG)
     else if (op.instType == "J")
       BitPat(ASEL_PC)
     else if (op.instType == "B")
+      BitPat(ASEL_REG)
+    else if (op.instType == "S")
       BitPat(ASEL_REG)
     else
       BitPat(ASEL_Z)
@@ -207,6 +209,8 @@ object BselField extends DecodeField[InstructionPattern, UInt] {
       BitPat(BSEL_IMM)
     else if (op.instType == "B")
       BitPat(BSEL_REG)
+    else if (op.instType == "S")
+      BitPat(BSEL_IMM)
     else
       BitPat(BSEL_REG)
   }
@@ -286,7 +290,9 @@ object WBackField extends DecodeField[InstructionPattern, UInt] {
   def genTable(op: InstructionPattern): BitPat = {
     if (op.ldType != "LD_XXX")
       BitPat(WB_MEM)
-    else if (op.opcode == "11001111")
+    else if (op.opcode.rawString == "1101111")
+      BitPat(WB_PC4)
+    else if (op.instType == "I" && op.opcode.rawString == "1100111")
       BitPat(WB_PC4)
     else
       BitPat(WB_ALU)
@@ -361,15 +367,15 @@ object MultDivField extends DecodeField[InstructionPattern, UInt] {
 
 class DecodeOutput extends Bundle {
 
-  val immType = Output(UInt(3.W))
-  val aluOp   = Output(UInt(4.W))
-  val aSel    = Output(UInt(2.W))
-  val bSel    = Output(UInt(2.W))
-  val jType   = Output(UInt(4.W))
-  val stType  = Output(UInt(2.W))
-  val ldType  = Output(UInt(3.W))
-  val wbType  = Output(UInt(2.W))
-  val wbWen   = Output(Bool())
+  val immType  = Output(UInt(3.W))
+  val aluOp    = Output(UInt(4.W))
+  val aSel     = Output(UInt(2.W))
+  val bSel     = Output(UInt(2.W))
+  val jType    = Output(UInt(4.W))
+  val stType   = Output(UInt(2.W))
+  val ldType   = Output(UInt(3.W))
+  val wbType   = Output(UInt(2.W))
+  val wbWen    = Output(Bool())
   val isEbreak = Output(Bool())
   val md       = Output(UInt(4.W))
   // val isCsr     = Output(Bool())
@@ -387,15 +393,15 @@ class Cl2Decoder extends Module {
   val decodeResult = decodeTable.decode(io.instr)
 
   // Can we use an elegant way to do this ?
-  io.out.aSel    := decodeResult(AselField)
-  io.out.bSel    := decodeResult(BselField)
-  io.out.aluOp   := decodeResult(AluOpField)
-  io.out.immType := decodeResult(ImmSelField)
-  io.out.jType   := decodeResult(JumpField)
-  io.out.ldType  := decodeResult(LoadField)
-  io.out.stType  := decodeResult(StoreField)
-  io.out.wbType  := decodeResult(WBackField)
-  io.out.wbWen   := decodeResult(WenField)
+  io.out.aSel     := decodeResult(AselField)
+  io.out.bSel     := decodeResult(BselField)
+  io.out.aluOp    := decodeResult(AluOpField)
+  io.out.immType  := decodeResult(ImmSelField)
+  io.out.jType    := decodeResult(JumpField)
+  io.out.ldType   := decodeResult(LoadField)
+  io.out.stType   := decodeResult(StoreField)
+  io.out.wbType   := decodeResult(WBackField)
+  io.out.wbWen    := decodeResult(WenField)
   io.out.isEbreak := decodeResult(EbreakField)
   io.out.md       := decodeResult(MultDivField)
 }

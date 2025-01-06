@@ -6,8 +6,6 @@ import chisel3._
 import chisel3.util._
 
 import Control._
-import os.read
-import scala.reflect.internal.Mode
 
 object SignExt {
   def apply(sig: UInt, len: Int): UInt = {
@@ -22,15 +20,17 @@ object ZeroExt {
   }
 }
 class IdEx2WbSignals extends Bundle {
-  val wbType   = Output(UInt(2.W))
-  val ldType   = Output(UInt(3.W))
-  val stType   = Output(UInt(2.W))
-  val aluRes   = Output(UInt(32.W))
-  val rs2Value = Output(UInt(32.W)) // Do we really need this signal ?
-  val rdAddr   = Output(UInt(5.W))
-  val wbWen    = Output(Bool())
-  val pc       = Output(UInt(32.W))
-  val isEbreak = Output(Bool())
+  val wbType       = Output(UInt(2.W))
+  val ldType       = Output(UInt(3.W))
+  val stType       = Output(UInt(2.W))
+  val exRes        = Output(UInt(32.W))
+  val rs2Value     = Output(UInt(32.W)) // Do we really need this signal ?
+  val rdAddr       = Output(UInt(5.W))
+  val wbWen        = Output(Bool())
+  val pc           = Output(UInt(32.W))
+  val isEbreak     = Output(Bool())
+  val isCompressed = Output(Bool())
+
 }
 
 class Cl2IdExStage extends Module {
@@ -56,7 +56,6 @@ class Cl2IdExStage extends Module {
 
   /* Decode */
   val decode = Module(new Cl2Decoder())
-  val predecode = Module(new Cl2Predecoder())
 
   decode.io.instr := instr
 
@@ -105,13 +104,54 @@ class Cl2IdExStage extends Module {
   alu.io.b := b
   val res = alu.io.res
   val lt  = Mux(a(31) === b(31), res(31), a(31))
-  val ltu = Mux(a(31) === b(31), res(31), b(31))  
+  val ltu = Mux(a(31) === b(31), res(31), b(31))
+  // We can do this better
 
+  /* Mult and Div */
+
+  // fanout ?
   val mdu = Module(new Cl2MDU)
-  val mdures = mdu.access(!alu.io.op, a, b, ctrl.md)
-  val mdu_finish = mdu.io.out.valid
+  dontTouch(mdu.io)
+  mdu.io.in.bits.src1 := a
+  mdu.io.in.bits.src2 := b
+  mdu.io.in.bits.func := ctrl.md
+  mdu.io.in.valid     := busy && !io.dummy_in && ctrl.aluOp === ALU_DtCare
+  val mdu_ready = RegInit(false.B)
+  when(mdu.io.in.fire) {
+    mdu_ready := true.B
+  }.elsewhen(mdu.io.out.fire) {
+    mdu_ready := false.B
+  }
+  mdu.io.out.ready := io.idEx2Wb.ready && mdu_ready
 
-  io.if2IdEx.ready := !busy || mdu_finish && io.idEx2Wb.ready || io.dummy_in
+  // val div = Module(new RestoringDivider)
+  // dontTouch(div.io)
+  // div.io.in.bits(0) := a
+  // div.io.in.bits(1) := b
+  // div.io.sign := ctrl.md(2)
+  // div.io.in.valid := busy && !io.dummy_in && ctrl.md(3)
+  // div.io.out.ready := io.idEx2Wb.ready
+
+  // val mult = Module(new BoothMultiplier)
+  // dontTouch(mult.io)
+  // mult.io.in.bits(0) := a.asSInt
+  // mult.io.in.bits(1) := b.asSInt
+  // mult.io.in.valid := busy && !io.dummy_in && !ctrl.md(3) && ctrl.md =/= MD_XX
+  // val mult_ready = RegInit(false.B)
+  // when(mult.io.in.fire) {
+  //   mult_ready := true.B
+  // }.elsewhen(mult.io.out.fire) {
+  //   mult_ready := false.B
+  // }
+  // mult.io.out.ready := io.idEx2Wb.ready && mult_ready
+
+  /* Pipeline control */
+  val ready_go   = Wire(Bool())
+  val mdu_finish = mdu.io.out.valid && ctrl.aluOp === ALU_DtCare
+  // Pay attention to ready_go signal
+  ready_go := ctrl.aluOp =/= ALU_DtCare || mdu_finish
+
+  io.if2IdEx.ready := !busy || ready_go && io.idEx2Wb.ready || io.dummy_in
 
   val jump = MuxLookup(ctrl.jType, false.B)(
     Seq(
@@ -126,7 +166,7 @@ class Cl2IdExStage extends Module {
       J_GEU  -> ~ltu
     )
   )
-  io.jump := jump && !io.dummy_in && mdu_finish
+  io.jump := jump && !io.dummy_in && ready_go
 
   val br_addr = (imm + pc)
   // We can do this better
@@ -143,21 +183,30 @@ class Cl2IdExStage extends Module {
       J_JALR -> (res & "hfffffffe".U)
     )
   )
+  /*  */
   /* Pipeline Registers */
-  val exRes = Mux(alu.io.op === 0.U, alu.io.res, mdures)
+  // val mduRes = MuxLookup(ctrl.md, alu.io.res)(Seq(
+  //   MD_DIV -> mdu.io.out.bits(31, 0),
+  //   MD_DIVU -> mdu.io.out.bits(31, 0),
+  //   MD_REM  -> mdu.io.out.bits(63, 32),
+  //   MD_REMU -> mdu.io.out.bits(63, 32),
+  //   MD_MUL  -> mdu.io.out.bits(31, 0),
+  //   MD_MULH -> mdu.io.out.bits(63, 32)
+  // ))
 
   val plRegs = RegInit(0.U.asTypeOf(new IdEx2WbSignals))
   // How to do this in a more elegant way ?
   when(io.idEx2Wb.fire & !io.dummy_in) {
-    plRegs.pc       := io.if2IdEx.bits.pc
-    plRegs.aluRes   := exRes
-    plRegs.ldType   := ctrl.ldType
-    plRegs.stType   := ctrl.stType
-    plRegs.wbType   := ctrl.wbType
-    plRegs.wbWen    := ctrl.wbWen
-    plRegs.rs2Value := io.rs2Value
-    plRegs.rdAddr   := instr(11, 7)
-    plRegs.isEbreak := ctrl.isEbreak
+    plRegs.pc           := io.if2IdEx.bits.pc
+    plRegs.exRes        := Mux(ctrl.aluOp === ALU_DtCare, mdu.io.out.bits, alu.io.res)
+    plRegs.ldType       := ctrl.ldType
+    plRegs.stType       := ctrl.stType
+    plRegs.wbType       := ctrl.wbType
+    plRegs.wbWen        := ctrl.wbWen
+    plRegs.rs2Value     := io.rs2Value
+    plRegs.rdAddr       := instr(11, 7)
+    plRegs.isEbreak     := ctrl.isEbreak
+    plRegs.isCompressed := io.if2IdEx.bits.isCompressed
   }
 
   val dummy_r = RegEnable(io.dummy_in, true.B, io.idEx2Wb.fire)
@@ -165,6 +214,6 @@ class Cl2IdExStage extends Module {
   io.idEx2Wb.bits := plRegs
 
   io.dummy_out     := dummy_r
-  io.idEx2Wb.valid := mdu_finish && busy || io.dummy_in
+  io.idEx2Wb.valid := ready_go && busy || io.dummy_in
 
 }

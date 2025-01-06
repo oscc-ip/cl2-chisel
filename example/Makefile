@@ -29,7 +29,7 @@ INC_PATH += $(WORK_DIR)/include
 INCFLAGS += $(addprefix -I, $(INC_PATH))
 
 # C/C++ FLAGS
-CFLAGS   += -lm -g -O3 -MMD -Wall $(INCFLAGS) \
+CFLAGS   += -lm -g -O2 -MMD -Wall $(INCFLAGS) \
             -fno-asynchronous-unwind-tables -fno-builtin -fno-stack-protector \
             -Wno-main -U_FORTIFY_SOURCE -fvisibility=hidden
 CFLAGS    += -fdata-sections -ffunction-sections

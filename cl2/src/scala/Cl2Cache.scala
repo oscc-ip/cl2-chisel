@@ -71,6 +71,8 @@ class cache_helper extends BlackBox with HasBlackBoxInline {
 			if(in_ready & in_valid) begin
   				if(!in_bits_wen)
   					rdata_reg <= mem_read(in_bits_addr);
+				else
+					mem_write(in_bits_addr, in_bits_mask, in_bits_wdata);
 			end
 		end
 	end

@@ -18,7 +18,7 @@ typedef enum state  {
 
 #define RESET_VECTOR 0x80000000U
 #define PMEM_SIZE 0x8000000U
-
+#define GPR(i) (top->rootp->Cl2Top__DOT__core__DOT__gpr__DOT__regs_ ## i)
 #define __EXPORT __atrribute__((visibility("default")))
 enum {DIFFTEST_TO_DUT, DIFFTEST_TO_REF};
 #define DIFF_MEMCPY (void (*)(unsigned int, void *, size_t, bool))

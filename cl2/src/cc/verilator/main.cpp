@@ -1,5 +1,6 @@
 #include "verilated.h"
 #include "verilated_fst_c.h"
+#include "VCl2Top___024root.h"
 #include "VCl2Top.h"
 #include "VCl2Top__Dpi.h"
 #include <cassert>
@@ -82,7 +83,11 @@ void signal_handler(int signum) {
 
 void sim_stop(uint32_t pc) {
   printf("ebreak pc: %#8x\n", pc);
-  core_state = QUIT;
+  int a0 = GPR(10);
+  if(a0 == 0)
+    core_state = QUIT;
+  else
+    core_state = ABORT;
 }
 
 extern "C" void ctx_update(uint32_t pc, uint32_t wen, uint32_t rd, uint32_t v) {

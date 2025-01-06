@@ -7,5 +7,6 @@ int main() {
   dummy++;
 
 
+  dummy = 0;
   return dummy / 2;
 }

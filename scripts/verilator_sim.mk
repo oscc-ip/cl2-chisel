@@ -20,7 +20,7 @@ VERILATOR_FLAGS +=  -cc --exe \
 					--threads 1 \
 					-Wno-WIDTHEXPAND -Wno-CASEINCOMPLETE
 
-$(BIN):
+$(BIN): clean
 	@mkdir -p $(VERILATOR_BUILD_DIR)
 	@mkdir -p $(WAVE_DIR)
 	verilator \
@@ -41,4 +41,4 @@ gdb: $(BIN)
 
 
 
-.PHONY: sim
+.PHONY: sim bin gdb

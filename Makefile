@@ -11,7 +11,7 @@ VERILATOR_MAKE  = ./scripts/verilator_sim.mk
 RVTEST_MAKE     = ./test/riscv-arch-test-am/Makefile
 
 # Tools
-MILL       = mill
+MILL       = $(or $(shell which mill), ./mill) # Use global mill if available, otherwise use local ./mill
 MKDIR      = mkdir -p
 RM         = rm -rf
 DUMPWAVE   = gtkwave

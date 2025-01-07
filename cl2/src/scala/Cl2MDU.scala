@@ -24,59 +24,72 @@ class MDUBundle(len: Int = 32) extends Bundle {
 }
 
 class BoothMultiplier(len: Int = 32) extends Module {
-  val io = IO(new MDUBundle(len))
+  // val io = IO(new MDUBundle(len))
 
-  val multiplicandReg = RegInit(0.U((len * 2).W))
-  val multiplierReg   = RegInit(0.U((len + 1).W)) // One more bit
-  val resultReg       = RegInit(0.U((len * 2).W))
+  // val s_idle :: s_multiply :: s_finish :: Nil = Enum(3)
+  // val state = RegInit(s_idle)
+  // val newReq = (state === s_idle) && io.in.fire
 
-  val shiftCounter = RegInit(0.U(8.W)) // Shift counter
-  val busy         = (multiplierReg =/= 0.U((len + 1).W) && shiftCounter < 16.U(8.W)).asBool
+  // val multiplicand = RegInit(0.U(len.W))
+  // val multiplier   = RegInit(0.U(len.W))
 
-  val signedMultiplicand = Wire(SInt((len * 2).W))
-  val signedMultiplier   = Wire(SInt((len + 1).W))
+  // val partialProd = RegInit(0.U((len * 2).W))
+  // val counter = RegInit(0.U((log2Ceil(len / 2) + 1).W))
 
-  when(io.sign) {
-    signedMultiplicand := io.in.bits(0).asTypeOf(SInt(len.W)).asSInt.pad(len * 2)
-    signedMultiplier   := io.in.bits(1).asTypeOf(SInt(len.W)).asSInt.pad(len + 1)
-  }.otherwise {
-    signedMultiplicand := io.in.bits(0).asUInt.pad(len * 2).asSInt
-    signedMultiplier   := io.in.bits(1).asUInt.pad(len + 1).asSInt
-  }
+  // val outputReg = RegInit(0.U((len * 2).W))
+  // val outputValid = RegInit(false.B)
 
-  when(io.in.valid && ~busy) {
-    resultReg       := 0.U((len * 2).W)
-    shiftCounter    := 0.U(8.W)
-    multiplicandReg := signedMultiplicand.asUInt              // Signed extend to 64 bit
-    multiplierReg   := Cat(signedMultiplier.asUInt, 0.U(1.W)) // Add one more 0 bit right next to it
-  }.otherwise {
-    when(busy) {
-      resultReg       := resultReg + MuxCase(
-        0.U(64.W),
-        Seq(
-          (multiplierReg(2, 0) === "b000".U) -> 0.U(64.W),
-          (multiplierReg(2, 0) === "b001".U) -> multiplicandReg,
-          (multiplierReg(2, 0) === "b010".U) -> multiplicandReg,
-          (multiplierReg(2, 0) === "b011".U) -> (multiplicandReg << 1.U),
-          (multiplierReg(2, 0) === "b100".U) -> (-(multiplicandReg << 1.U)),
-          (multiplierReg(2, 0) === "b101".U) -> (-multiplicandReg),
-          (multiplierReg(2, 0) === "b110".U) -> (-multiplicandReg),
-          (multiplierReg(2, 0) === "b111".U) -> 0.U(64.W)
-        )
-      )
-      multiplicandReg := multiplicandReg << 2.U
-      multiplierReg   := multiplierReg >> 2.U
-      shiftCounter    := shiftCounter + 1.U(8.W)
-    }.otherwise {
-      resultReg       := resultReg
-      multiplicandReg := multiplicandReg
-      multiplierReg   := multiplierReg
-      shiftCounter    := shiftCounter
-    }
-  }
-  io.out.bits  := resultReg
-  io.out.valid := !busy
-  io.in.ready  := !busy
+  // io.out.bits  := outputReg
+
+  // when(newReq) {
+  //   multiplicand := io.in.bits(0)
+  //   multiplier   := io.in.bits(1)
+  //   partialProd  := 0.U
+  //   counter      := 0.U
+  //   state        := s_multiply
+  // }.elsewhen(state === s_multiply){
+  //   val boothBits = multiplier(1, 0) 
+  //   val addSub = WireDefault(0.S((len * 2).W))
+
+  //   switch(boothBits) {
+  //     is("b00".U) { addSub := 0.S }
+  //     is("b01".U) { addSub :=  multiplicand.asSInt }
+  //     is("b10".U) { addSub := -multiplicand.asSInt }
+  //     is("b11".U) { addSub := 0.S }
+  //   }
+
+  //   partialProd := (partialProd.asSInt + addSub).asUInt
+
+  //   multiplier := multiplier >> 2.U
+  //   partialProd := partialProd << 2.U
+
+  //   counter := counter + 1.U
+  //   when(counter === (len / 2).U) {
+  //     state := s_finish
+  //   }
+  // }.elsewhen(state === s_finish){
+  //     outputReg  := partialProd
+  //     outputValid := true.B
+  //     state      := s_idle
+  //     io.in.ready := true.B
+  // }
+
+  // io.out.valid := (state === s_finish)
+  // io.in.ready  := (state === s_idle)
+
+    val io = IO(new MDUBundle(len))
+    val latency = 1
+
+    def DSPInPipe[T <: Data](a: T) = RegNext(a)
+    def DSPOutPipe[T <: Data](a: T) = RegNext(RegNext(RegNext(a)))
+    val mulRes = (DSPInPipe(io.in.bits(0)).asSInt * DSPInPipe(io.in.bits(1)).asSInt)
+    io.out.bits := DSPOutPipe(mulRes).asUInt
+    io.out.valid := DSPOutPipe(DSPInPipe(io.in.fire))
+
+    val busy = RegInit(false.B)
+    when (io.in.valid && !busy) { busy := true.B }
+    when (io.out.valid) { busy := false.B }
+    io.in.ready := (if (latency == 0) true.B else !busy)
 }
 
 class RestoringDivider(len: Int = 32) extends Module {
@@ -164,8 +177,7 @@ class Cl2MDU extends Module {
 
   val mul = Module(new BoothMultiplier(32))
   val div = Module(new RestoringDivider(32))
-  dontTouch(mul.io)
-  dontTouch(div.io)
+
   List(mul.io, div.io).map { case x =>
     x.sign      := isDivSign
     x.out.ready := io.out.ready
@@ -175,7 +187,7 @@ class Cl2MDU extends Module {
   val zeroext           = ZeroExt(_: UInt, 33)
   val mulInputFuncTable = List(
     MDUOpType.mul    -> (zeroext, zeroext),
-    MDUOpType.mulh   -> (signext, signext),
+    MDUOpType.mulh   -> (signext, signext), 
     MDUOpType.mulhsu -> (signext, zeroext),
     MDUOpType.mulhu  -> (zeroext, zeroext)
   )
@@ -195,6 +207,8 @@ class Cl2MDU extends Module {
   val res    = Mux(isDiv, divRes, mulRes)
   io.out.bits := res
 
-  io.in.ready  := mul.io.in.ready
-  io.out.valid := mul.io.out.valid || div.io.out.valid
+  val isDivReg = Mux(io.in.fire, isDiv, RegNext(isDiv))
+  io.in.ready := Mux(isDiv, div.io.in.ready, mul.io.in.ready)
+  io.out.valid := Mux(isDivReg, div.io.out.valid, mul.io.out.valid)
 }
+

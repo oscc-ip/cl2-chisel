@@ -20,7 +20,7 @@ VERILATOR_FLAGS +=  -cc --exe \
 					--threads 1 \
 					-Wno-WIDTHEXPAND -Wno-CASEINCOMPLETE
 
-$(BIN): clean
+$(BIN): verilator_clean
 	@mkdir -p $(VERILATOR_BUILD_DIR)
 	@mkdir -p $(WAVE_DIR)
 	verilator \
@@ -31,14 +31,15 @@ $(BIN): clean
 		--Mdir $(OBJ_DIR) \
 		-o $(abspath $(BIN))
 
-bin: $(BIN)
+verilator_bin: $(BIN)
 
-sim: $(BIN)
+verilator_sim: $(BIN)
 	$(BIN) example/addi-riscv32-cl2.bin utils/riscv32-spike-so
 
-gdb: $(BIN)
+verilator_gdb: $(BIN)
 	gdb --args $(BIN) example/addi-riscv32-cl2.bin utils/riscv32-spike-so
 
+verilator_clean: 
+	rm -rf $(VERILATOR_BUILD_DIR)
 
-
-.PHONY: sim bin gdb
+.PHONY: verilator_sim verilator_bin verilator_gdb verilator_clean

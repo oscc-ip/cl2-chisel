@@ -27,7 +27,7 @@ extern "C" int difftest_step();
 extern "C" void difftest_init(char *ref_so_file, long img_size, int port);
 #endif
 
-
+// #define DEBUG_DIFF
 
 //This macro just flip a 1-bit signal.
 #define Flipped(signal) (~(signal ^ (-2)))
@@ -82,7 +82,7 @@ void signal_handler(int signum) {
 }
 
 void sim_stop(uint32_t pc) {
-  printf("ebreak pc: %#8x\n", pc);
+  // printf("ebreak pc: %#8x\n", pc);
   int a0 = GPR(10);
   if(a0 == 0)
     core_state = QUIT;
@@ -91,7 +91,7 @@ void sim_stop(uint32_t pc) {
 }
 
 extern "C" void ctx_update(uint32_t pc, uint32_t wen, uint32_t rd, uint32_t v) {
-  printf("[DPI_C] PC is: %#8x\n", pc);
+  //printf("[DPI_C] PC is: %#8x\n", pc);
   context.pc = pc;
   if(rd != 0 && wen)
     context.gpr[rd] = v;

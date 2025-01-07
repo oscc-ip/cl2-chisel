@@ -35,11 +35,15 @@ extern "C" void difftest_init(char *ref_so_file, long img_size, int port) {
 
 // This function is so ugly !!!
 extern "C" bool difftest_step() {
-  printf("[Difftest] this is difftest\n");
+  #ifdef DEBUG_DIFF
+    printf("[Difftest] this is difftest\n");
+  #endif
   core_context_t tmp_context = {};
   ref_difftest_regcpy((void*)&tmp_context, DIFFTEST_TO_DUT);
   if(tmp_context.pc != context.pc) {
-    printf("[difftest] ref PC: %#8x, dut PC: %#8x\n", tmp_context.pc, context.pc);
+    #ifdef DEBUG_DIFF
+      printf("[Difftest] ref PC: %#8x, dut PC: %#8x\n", tmp_context.pc, context.pc);
+    #endif
     return false;
   }
   ref_difftest_exec(1);

@@ -18,7 +18,7 @@ object MDUOpType {
 }
 
 class MDUBundle(len: Int = 32) extends Bundle {
-  val in   = Flipped(DecoupledIO(Vec(2, Output(UInt(len.W)))))
+  val in   = Flipped(DecoupledIO(Vec(2, Output(UInt((len + 1).W)))))
   val out  = DecoupledIO(Output(UInt((len * 2).W)))
   val sign = Input(Bool())
 }
@@ -104,7 +104,7 @@ class RestoringDivider(len: Int = 32) extends Module {
   val state                                                       = RegInit(s_idle)
   val newReq                                                      = (state === s_idle) && io.in.fire
 
-  val (dividend, divisor) = (io.in.bits(0), io.in.bits(1))
+  val (dividend, divisor) = (io.in.bits(0)(31, 0), io.in.bits(1)(31, 0))
   val divBy0              = divisor === 0.U(len.W)
 
   val shiftReg = Reg(UInt((1 + len * 2).W))
@@ -177,6 +177,8 @@ class Cl2MDU extends Module {
 
   val mul = Module(new BoothMultiplier(32))
   val div = Module(new RestoringDivider(32))
+  dontTouch(mul.io);
+  dontTouch(div.io);
 
   List(mul.io, div.io).map { case x =>
     x.sign      := isDivSign

@@ -190,6 +190,8 @@ object AselField extends DecodeField[InstructionPattern, UInt] {
       BitPat(ASEL_REG)
     else if (op.instType == "S")
       BitPat(ASEL_REG)
+    else if (op.instType == "M")
+      BitPat(ASEL_REG)
     else
       BitPat(ASEL_Z)
   }
